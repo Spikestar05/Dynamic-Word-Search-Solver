@@ -1,0 +1,342 @@
+//Word Search
+//Harshavarthan Mathapati
+//2-13-2024
+//CS 1337.010
+//The code is used to searche for specified words hidden within a matrix of letters
+//Change log:
+//2-13-24
+//added function to open the file.
+//added function to read file.
+//2-14-24
+//added function to display the matrix and the number of rows and columns it has.
+//added function to read in the matrix.
+//added function to read the word bank.
+//added function to remove the spaces between the words in the word bank.
+//added function to make all the letter of the words in uppercase.
+//2-16-24
+//added function to search for each word, and added its logic.
+//2-17-24
+//added function to get the direction the words go in.
+//added function to display the words that were not found.
+//2-21-24
+//added function that gets the location of letters found.
+//added function that creates the ppm file.
+//2-22-24
+//added function to output the correct colors to the ppm file.
+
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <cctype>
+
+using namespace std;
+
+string fileName;
+int row, col, numWords = 0, wordIndex = 0;
+const int maxSize = 100;
+bool foundRowCol = false, foundMatrix = false, foundName = false, diagnosticMode = false;
+string wordBank[maxSize], wordBankNoSpace[maxSize];
+char matrix [maxSize][maxSize];
+vector<string> notFound;
+int wordLocations[maxSize][maxSize][2];
+
+void skipAnyCommentLines(ifstream &infile) {
+    string textLine;
+    char ch;
+    ch = infile.peek();
+    while (ch == '#' || ch == '\n' || isspace(infile.peek())) { //check for both comment lines and blank lines
+        getline(infile,textLine); //ignore this line - just toss it
+        ch = infile.peek(); //peek at first character of next line
+    }
+} //skipAnyCommentLines
+
+void toUpperWordBank() {
+    for (int i = 0; i < numWords; i++) {
+        string& word = wordBankNoSpace[i];
+        string& word2 = wordBank[i];
+        //changes both arrays, the ones that have the space removed and the default one.
+        for(int j = 0; j < word.length() + 1; j++) {
+            word[j] = toupper(word[j]);
+            word2[j] = toupper(word2[j]);
+            if(diagnosticMode) {
+                cout << word[j] << endl;
+                cout << word2[j] << endl;
+            }
+        }
+    }
+}
+
+string removeSpace(string movieName) {
+    string result;
+    for (int i = 0; i < movieName.size(); i ++) {
+        if(movieName[i] != ' ') {
+            result += movieName[i];
+        }
+    }
+    if(diagnosticMode) {
+        cout << result;
+    }
+    return result;
+}
+
+void readWordBank(ifstream& file) {
+    skipAnyCommentLines(file);
+    string line;
+    while(getline(file,line)) {
+        wordBank[numWords] = line;
+        wordBankNoSpace[numWords] = removeSpace(wordBank[numWords]);
+        if(diagnosticMode) {
+            cout << "Word read: " << wordBank[numWords] << endl;
+            cout << "Word stored: " << wordBankNoSpace[numWords] << endl;
+            cout << "Word stored in wordBankNoSpace[" << numWords << "]: " << wordBankNoSpace[numWords] << endl;
+            cout << numWords << endl;
+        }
+        numWords++;
+        skipAnyCommentLines(file);
+    }
+}
+
+void readMatrix(ifstream& file) {
+    for(int i = 0; i < row; i++) {
+        for(int j = 0; j < col; j++) {
+            file >> matrix [i][j];
+            if(diagnosticMode) {
+                cout << matrix [i][j];
+            }
+        }
+        if (diagnosticMode) {
+            cout << endl;
+        }
+    }
+    foundMatrix = true;
+}
+
+void readFile() {
+    string line;
+    ifstream file(fileName);
+    while(getline(file, line)) {
+        if(file.peek() == '#'|| isspace(file.peek())) {
+            if(diagnosticMode) {
+                cout << "# or space is present" << endl;
+            }
+        } else if (!foundRowCol) {
+            file >> row >> col;
+            if(diagnosticMode) {
+                cout << "# or space is not present" << endl;
+                cout << row << " " << col;
+            }
+            foundRowCol = true;
+        } else if (!foundMatrix) {
+            readMatrix(file);
+        } else if (!foundName) {
+            readWordBank(file);
+            toUpperWordBank();
+            if(diagnosticMode) {
+                cout << "movie name" << endl;
+                cout << numWords;
+            }
+            foundName = true;
+        }
+    }
+}
+
+void openFile() {
+    cout << "Enter the name of the file: " << endl;
+    cin >> fileName;
+    ifstream file;
+    file.open(fileName);
+    while (!file.is_open()) {
+        cout << "Could not open file: " << fileName << endl;
+        cout << "Enter another filename or type 'quit' to exit the program: ";
+        cin >> fileName;
+
+        if (fileName == "quit") {
+            return;
+        }
+        file.open(fileName);
+    }
+}
+
+int CharCount(string &word, int r, int c, int rowStep, int colStep) {
+    int count = 0;
+    for(int i = 0; i < word.size(); ++i) {
+        char current = word[i];
+        //checks the bounds to make sure the word is shorter than the edge of the matrix.
+        if(r < 0 || c < 0 || r >= row || c >= col || matrix[r][c] != current) {
+            break;
+        }
+        r += rowStep;
+        c += colStep;
+        count ++;
+    }
+    return count;
+}
+
+void GetLetterLocation(string &word, int r, int c, int rowStep, int colStep) {
+    int count = 0;
+    for(int i = 0; i < word.size(); ++i) {
+        char current = word[i];
+        //checks the bounds to make sure the word is shorter than the edge of the matrix.
+        if(r < 0 || c < 0 || r >= row || c >= col || matrix[r][c] != current) {
+            break;
+        }
+        count ++;
+        wordLocations[count][wordIndex][0] = r;
+        wordLocations[count][wordIndex][1] = c;
+
+        if(diagnosticMode) {
+            cout << "Assign values to wordLocations[" << count << "][" << wordIndex << "]: (" << r << ", " << c << ")" << endl;
+            cout << "Stored values: (" << wordLocations[count][wordIndex][0] << ", " << wordLocations[count][wordIndex][1] << ")" << endl;
+        }
+        wordIndex++;
+        r += rowStep;
+        c += colStep;
+    }
+}
+
+void wordColorLogic(string word, int &red, int &green, int &blue){
+    if (word.size() <= 5) {
+        red = 255;
+        green = 0;
+        blue = 0;
+    } else if (word.size() <= 10) {
+        red = 0;
+        green = 255;
+        blue = 0;
+    } else {
+        red = 0;
+        green = 0;
+        blue = 255;
+    }
+    //cout << "Word: " << word << ", Size: " << word.size() << ", Red: " << red << ", Green: " << green << ", Blue: " << blue << endl;
+}
+
+void PPMFileLogic(string word, ofstream &ppmFile) {
+
+    int red, green, blue;
+
+    for(int x = 0; x < row; x++) {
+        for(int y = 0; y < col; y++) {
+            bool found = false;
+            // Check if the current position is stored in wordLocations
+            for(int k = 0; k < word.size(); k++) {
+                for(int l = 0; l < wordIndex; l++) {
+                    if(wordLocations[k][l][0] == x && wordLocations[k][l][1] == y && (x != 0 && y != 0)) {
+                        if(word.size() <= 7){
+                            ppmFile << "0 225 0 ";
+                        } else if (word.size() <= 10){
+                            ppmFile << "225 0 0 ";
+                        } else {
+                            ppmFile << "0 0 225 ";
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+                if(found) {
+                    break;
+                }
+            }
+            if(!found) {
+                ppmFile << "255 255 255 "; // White color
+            }
+        }
+        ppmFile << endl;
+    }
+}
+
+void createPPM(string word) {
+    ofstream ppmFile("word_search_results.ppm");
+
+    ppmFile << "P3" << endl;
+    ppmFile << col << " " << row << endl;
+    ppmFile << "255" << endl;
+
+    PPMFileLogic(word, ppmFile);
+
+    ppmFile.close(); // Close the file
+}
+
+string getDirection(int rowStep, int colStep) {
+    if (rowStep == -1 && colStep == 0) {
+        return "N";
+    } else if (rowStep == -1 && colStep == 1) {
+        return "NE";
+    } else if (rowStep == -1 && colStep == -1) {
+        return "NW";
+    } else if (rowStep == 1 && colStep == 0) {
+        return "S";
+    } else if (rowStep == 1 && colStep == 1) {
+        return "SE";
+    } else if (rowStep == 1 && colStep == -1) {
+        return "SW";
+    } else if (rowStep == 0 && colStep == 1) {
+        return "E";
+    } else if (rowStep == 0 && colStep == -1) {
+        return "W";
+    }
+    return "Not Found";
+}
+
+void searchWordLogic(int &index, bool& found, string& word) {
+    //checks each character in the matrix and in each word to find if the word is in the matrix.
+    for(int i = 0; i < row; i++) {
+        for(int j = 0; j < col; j++) {
+            for(int rowStep = -1; rowStep <= 1; rowStep++) {
+                for(int colStep = -1; colStep <= 1; colStep++) {
+                    if(rowStep == 0 && colStep == 0) {
+                        continue;
+                    }
+                    if(CharCount(word, i, j, rowStep, colStep) == (word.size())) {
+                        GetLetterLocation(word, i, j, rowStep, colStep);
+                        createPPM(word);
+                        cout << "found " << wordBank[index] << " at (" << ++i << "," << ++j <<")";
+                        cout << ": (Direction = " << getDirection(rowStep, colStep) << ")" << endl << endl;
+                        found = true;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void searchWord() {
+    for(int index = 0; index < numWords; index++) {
+        string word = wordBankNoSpace[index];
+        bool found = false;
+        searchWordLogic(index, found, word);
+        if (diagnosticMode) {
+            cout << word << endl;
+        }
+        if(!found) {
+            notFound.push_back(wordBank[index]);
+        }
+    }
+}
+
+void wordNotFound() {
+    cout << "Couldn't find these movies:" << endl;
+    for (int i = 0; i < notFound.size(); i++) {
+        cout << notFound[i] << endl;
+    }
+}
+
+void displayMatrix() {
+    cout << "The file opened is: " << fileName << endl;
+    cout << "Number of rows: " << row << " Number of columns: " << col << endl << endl;
+    for(int i = 0; i < row; i++) {
+        for(int j = 0; j < col; j++) {
+            cout << matrix[i][j];
+        }
+        cout << endl;
+    }
+    cout << endl;
+}
+
+int main() {
+    openFile();
+    readFile();
+    displayMatrix();
+    searchWord();
+    wordNotFound();
+}
